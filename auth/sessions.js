@@ -1,9 +1,7 @@
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 
 const Users = require("../users/users-model.js");
-const secrets = require("../api/secrets.js");
 
 router.post("/register", (req, res) => {
   let user = req.body; // username, password
@@ -35,11 +33,8 @@ router.post("/login", (req, res) => {
     .then(([user]) => {
       // if we find the user, then also check that passwords match
       if (user && bcrypt.compareSync(password, user.password)) {
-        // produce a token
-        const token = generateToken(user);
-
-        // send the token to the client
-        res.status(200).json({ message: "Welcome!", token });
+        req.session.loggedIn = true;
+        res.status(200).json({ message: "Welcome!" });
       } else {
         res.status(401).json({ message: "You cannot pass!" });
       }
@@ -50,17 +45,21 @@ router.post("/login", (req, res) => {
     });
 });
 
-function generateToken(user) {
-  // the data
-  const payload = {
-    userId: user.id
-  };
-  const secret = secrets.jwtSecret;
-  const options = {
-    expiresIn: "1d",
-  };
-
-  return jwt.sign(payload, secret, options);
-}
+router.get("/logout", (req, res) => {
+  if (req.session) {
+    req.session.destroy(error => {
+      if (error) {
+        res.status(500).json({
+          errorMessage:
+            "Unable to log out.",
+        });
+      } else {
+        res.status(204).end();
+      }
+    });
+  } else {
+    res.status(204).end();
+  }
+});
 
 module.exports = router;
